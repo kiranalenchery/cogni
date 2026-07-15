@@ -12,46 +12,58 @@ const SKIP_DIRS = new Set([
 ]);
 
 const CODE_EXTENSIONS = new Set([".py", ".js", ".jsx", ".ts", ".tsx"]);
+const MAX_LINE_LENGTH = 500;
 
-const MAX_LINE_LENGTH = 500; // heuristic: longer lines suggest minified/generated code
+export interface IngestResult {
+  chunks: CodeChunk[];
+  warnings: string[];
+  filesScanned: number;
+}
 
-export async function ingestCodeFolder(rootDir: string): Promise<CodeChunk[]> {
-  const allChunks: CodeChunk[] = [];
+export async function ingestCodeFolder(rootDir: string): Promise<IngestResult> {
+  const chunks: CodeChunk[] = [];
+  const warnings: string[] = [];
   const filePaths = await walkDirectory(rootDir);
-
-  console.log(`Found ${filePaths.length} candidate files under ${rootDir}`);
 
   for (const filePath of filePaths) {
     try {
       const sourceCode = readFileSync(filePath, "utf-8");
 
       if (looksMinified(sourceCode)) {
-        console.warn(`Skipping likely minified/generated file: ${filePath}`);
+        warnings.push(`Skipped likely minified/generated file: ${filePath}`);
         continue;
       }
 
-      const chunks = await chunkCodeFile(filePath, sourceCode);
-      allChunks.push(...chunks);
+      const fileChunks = await chunkCodeFile(filePath, sourceCode);
+      if (fileChunks.length === 0) {
+        warnings.push(`No structural items found in ${filePath}, used naive chunking`);
+      }
+      chunks.push(...fileChunks);
     } catch (err) {
-      console.warn(`Skipping ${filePath}: ${(err as Error).message}`);
+      warnings.push(`Skipped ${filePath}: ${(err as Error).message}`);
     }
   }
 
-  return allChunks;
+  return { chunks, warnings, filesScanned: filePaths.length };
 }
 
-export async function ingestCodeFolders(rootDirs: string[]): Promise<CodeChunk[]> {
+export async function ingestCodeFolders(rootDirs: string[]): Promise<IngestResult> {
   const allChunks: CodeChunk[] = [];
+  const allWarnings: string[] = [];
+  let totalScanned = 0;
+
   for (const rootDir of rootDirs) {
-    const chunks = await ingestCodeFolder(rootDir);
-    allChunks.push(...chunks);
+    const result = await ingestCodeFolder(rootDir);
+    allChunks.push(...result.chunks);
+    allWarnings.push(...result.warnings);
+    totalScanned += result.filesScanned;
   }
-  return allChunks;
+
+  return { chunks: allChunks, warnings: allWarnings, filesScanned: totalScanned };
 }
 
 function looksMinified(sourceCode: string): boolean {
-  const lines = sourceCode.split("\n");
-  return lines.some(line => line.length > MAX_LINE_LENGTH);
+  return sourceCode.split("\n").some(line => line.length > MAX_LINE_LENGTH);
 }
 
 async function walkDirectory(dir: string): Promise<string[]> {
@@ -60,7 +72,6 @@ async function walkDirectory(dir: string): Promise<string[]> {
 
   for (const entry of entries) {
     if (SKIP_DIRS.has(entry.name)) continue;
-
     const fullPath = join(dir, entry.name);
 
     if (entry.isDirectory()) {
