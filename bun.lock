@@ -5,9 +5,13 @@
     "": {
       "name": "cogni",
       "dependencies": {
+        "@kreuzberg/tree-sitter-language-pack": "^1.10.9",
         "chalk": "^5.6.2",
         "figlet": "^1.11.0",
         "ora": "^9.4.1",
+        "tree-sitter": "^0.25.0",
+        "tree-sitter-javascript": "^0.25.0",
+        "tree-sitter-typescript": "^0.23.2",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -19,6 +23,20 @@
     },
   },
   "packages": {
+    "@kreuzberg/tree-sitter-language-pack": ["@kreuzberg/tree-sitter-language-pack@1.10.9", "", { "optionalDependencies": { "@kreuzberg/tree-sitter-language-pack-darwin-arm64": "1.10.9", "@kreuzberg/tree-sitter-language-pack-darwin-x64": "1.10.9", "@kreuzberg/tree-sitter-language-pack-linux-arm64-gnu": "1.10.9", "@kreuzberg/tree-sitter-language-pack-linux-arm64-musl": "1.10.9", "@kreuzberg/tree-sitter-language-pack-linux-x64-gnu": "1.10.9", "@kreuzberg/tree-sitter-language-pack-linux-x64-musl": "1.10.9", "@kreuzberg/tree-sitter-language-pack-win32-arm64-msvc": "1.10.9", "@kreuzberg/tree-sitter-language-pack-win32-x64-msvc": "1.10.9" } }, "sha512-sarsHH8pselagUmP76z02m1U6mh2yL8DQeYBNDhsdxnmJQJYXLr+F07dp46SboB1TGYGcLtsN8f5cLVT5lerRg=="],
+
+    "@kreuzberg/tree-sitter-language-pack-darwin-arm64": ["@kreuzberg/tree-sitter-language-pack-darwin-arm64@1.10.9", "", { "os": "darwin", "cpu": "arm64" }, "sha512-vP06by4VUt8a/GYnsoVP6yRJUDSRSAbbTfoRrtwHJtu4Ta5Q1I87FQfV+gytueFeYVZWRfBNb9J+C/ndaX0stw=="],
+
+    "@kreuzberg/tree-sitter-language-pack-darwin-x64": ["@kreuzberg/tree-sitter-language-pack-darwin-x64@1.10.9", "", { "os": "darwin", "cpu": "x64" }, "sha512-r6++ztG2hp1jzWy/DaRHcSQyX8dENtna0oen8KunYJHGv85FWTL17SESHGaoPRMmV1vNhvQBvJunWpsti0fpRw=="],
+
+    "@kreuzberg/tree-sitter-language-pack-linux-arm64-gnu": ["@kreuzberg/tree-sitter-language-pack-linux-arm64-gnu@1.10.9", "", { "os": "linux", "cpu": "arm64" }, "sha512-XNTL3+MpgDA518/swzDfbXEjyEmuiJuYVULuMy7vZna5yw7oSz4y0z+Nih065YJHSjHJSlniK/Dd/KzYc03LDQ=="],
+
+    "@kreuzberg/tree-sitter-language-pack-linux-x64-gnu": ["@kreuzberg/tree-sitter-language-pack-linux-x64-gnu@1.10.9", "", { "os": "linux", "cpu": "x64" }, "sha512-az+qas7AK9OfreGPuScJoW08qSiOlKwjyNWIQA73PWTNF8j2J03epjvA/uqODJdP1rjDbmoEgbcimXe0cQTYsg=="],
+
+    "@kreuzberg/tree-sitter-language-pack-win32-arm64-msvc": ["@kreuzberg/tree-sitter-language-pack-win32-arm64-msvc@1.10.9", "", { "os": "win32", "cpu": "arm64" }, "sha512-GlGoqbgeoexs15sv69lSCbrGe0k8xwRyCO6dMIoeH1Q2mTWYCwH7LjfJyD1aw92Q/5rdFOhhWJyzQ423VNPq6Q=="],
+
+    "@kreuzberg/tree-sitter-language-pack-win32-x64-msvc": ["@kreuzberg/tree-sitter-language-pack-win32-x64-msvc@1.10.9", "", { "os": "win32", "cpu": "x64" }, "sha512-4FH8lkQt+IL7Aw0yYKyy0MZ2KditCrkAbrs3fj7g34L2TS1Gnl/ctV9217sRSZ1h++OCGpzEaNXCA71SC50gzw=="],
+
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@types/figlet": ["@types/figlet@1.7.0", "", {}, "sha512-KwrT7p/8Eo3Op/HBSIwGXOsTZKYiM9NpWRBJ5sVjWP/SmlS+oxxRvJht/FNAtliJvja44N3ul1yATgohnVBV0Q=="],
@@ -49,6 +67,10 @@
 
     "mimic-function": ["mimic-function@5.0.1", "", {}, "sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA=="],
 
+    "node-addon-api": ["node-addon-api@8.9.0", "", {}, "sha512-ekZMeaaIzSQTSpr7X2X3iJM7lTzgnx8ahAG9pJfT/7+14mlEM8ZYQ9cgCDvSSRbReFK0oHli3WrZdCiRsgAT9Q=="],
+
+    "node-gyp-build": ["node-gyp-build@4.8.4", "", { "bin": { "node-gyp-build": "bin.js", "node-gyp-build-optional": "optional.js", "node-gyp-build-test": "build-test.js" } }, "sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ=="],
+
     "onetime": ["onetime@7.0.0", "", { "dependencies": { "mimic-function": "^5.0.0" } }, "sha512-VXJjc87FScF88uafS3JllDgvAm+c/Slfz06lorj2uAY34rlUu0Nt+v8wreiImcrgAjjIHp1rXpTDlLOGw29WwQ=="],
 
     "ora": ["ora@9.4.1", "", { "dependencies": { "chalk": "^5.6.2", "cli-cursor": "^5.0.0", "cli-spinners": "^3.2.0", "is-interactive": "^2.0.0", "is-unicode-supported": "^2.1.0", "log-symbols": "^7.0.1", "stdin-discarder": "^0.3.2", "string-width": "^8.1.0" } }, "sha512-6VlU9MLXbjVQD04AZCMX28hVtA5bUoadvUqO76MUCVA0ilwJbMiHsITRPfyVm6p/BC0Av/BXMujx39WCe1LEqw=="],
@@ -63,10 +85,18 @@
 
     "strip-ansi": ["strip-ansi@7.2.0", "", { "dependencies": { "ansi-regex": "^6.2.2" } }, "sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w=="],
 
+    "tree-sitter": ["tree-sitter@0.25.0", "", { "dependencies": { "node-addon-api": "^8.3.0", "node-gyp-build": "^4.8.4" } }, "sha512-PGZZzFW63eElZJDe/b/R/LbsjDDYJa5UEjLZJB59RQsMX+fo0j54fqBPn1MGKav/QNa0JR0zBiVaikYDWCj5KQ=="],
+
+    "tree-sitter-javascript": ["tree-sitter-javascript@0.25.0", "", { "dependencies": { "node-addon-api": "^8.3.1", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "tree-sitter": "^0.25.0" }, "optionalPeers": ["tree-sitter"] }, "sha512-1fCbmzAskZkxcZzN41sFZ2br2iqTYP3tKls1b/HKGNPQUVOpsUxpmGxdN/wMqAk3jYZnYBR1dd/y/0avMeU7dw=="],
+
+    "tree-sitter-typescript": ["tree-sitter-typescript@0.23.2", "", { "dependencies": { "node-addon-api": "^8.2.2", "node-gyp-build": "^4.8.2", "tree-sitter-javascript": "^0.23.1" }, "peerDependencies": { "tree-sitter": "^0.21.0" }, "optionalPeers": ["tree-sitter"] }, "sha512-e04JUUKxTT53/x3Uq1zIL45DoYKVfHH4CZqwgZhPg5qYROl5nQjV+85ruFzFGZxu+QeFVbRTPDRnqL9UbU4VeA=="],
+
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
 
     "yoctocolors": ["yoctocolors@2.1.2", "", {}, "sha512-CzhO+pFNo8ajLM2d2IW/R93ipy99LWjtwblvC1RsoSUMZgyLbYFr221TnSNT7GjGdYui6P459mw9JH/g/zW2ug=="],
+
+    "tree-sitter-typescript/tree-sitter-javascript": ["tree-sitter-javascript@0.23.1", "", { "dependencies": { "node-addon-api": "^8.2.2", "node-gyp-build": "^4.8.2" }, "peerDependencies": { "tree-sitter": "^0.21.1" }, "optionalPeers": ["tree-sitter"] }, "sha512-/bnhbrTD9frUYHQTiYnPcxyHORIw157ERBa6dqzaKxvR/x3PC4Yzd+D1pZIMS6zNg2v3a8BZ0oK7jHqsQo9fWA=="],
   }
 }

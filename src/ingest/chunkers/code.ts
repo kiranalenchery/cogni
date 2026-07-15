@@ -1,0 +1,64 @@
+import {
+  process,
+  detectLanguageFromPath,
+  hasLanguage,
+} from "@kreuzberg/tree-sitter-language-pack";
+import type { StructureItem } from "@kreuzberg/tree-sitter-language-pack";
+import { naiveChunk } from "./native";
+
+export interface CodeChunk {
+  type: string;
+  name: string;
+  text: string;
+  startLine: number;
+  endLine: number;
+  filePath: string;
+}
+
+function flattenStructure(
+  items: StructureItem[],
+  filePath: string,
+  sourceCode: string,
+): CodeChunk[] {
+  const chunks: CodeChunk[] = [];
+
+  for (const item of items) {
+    if (item.span) {
+      chunks.push({
+        type: item.kind ?? "Other",
+        name: item.name ?? "anonymous",
+        text: sourceCode.slice(item.span.startByte, item.span.endByte),
+        startLine: (item.span.startLine ?? 0) + 1, // convert to 1-indexed
+        endLine: (item.span.endLine ?? 0) + 1,
+        filePath,
+      });
+    }
+
+    if (item.children?.length) {
+      chunks.push(...flattenStructure(item.children, filePath, sourceCode));
+    }
+  }
+
+  return chunks;
+}
+
+export async function chunkCodeFile(
+  filePath: string,
+  sourceCode: string,
+): Promise<CodeChunk[]> {
+  const language = detectLanguageFromPath(filePath);
+
+  if (!language || !hasLanguage(language)) {
+    return naiveChunk(sourceCode, filePath);
+  }
+
+  const result = process(sourceCode, { language, structure: true });
+
+  if (!result.structure || result.structure.length === 0) {
+    console.warn(
+      `No structural items found in ${filePath}, using naive chunking`,
+    );
+    return naiveChunk(sourceCode, filePath);
+  }
+  return flattenStructure(result.structure, filePath, sourceCode);
+}

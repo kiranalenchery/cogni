@@ -1,7 +1,10 @@
 {
   "name": "cogni",
-  "module": "index.ts",
+  "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "cogni": "./src/cli.ts"
+  },
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
@@ -11,8 +14,12 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@kreuzberg/tree-sitter-language-pack": "^1.10.9",
     "chalk": "^5.6.2",
     "figlet": "^1.11.0",
-    "ora": "^9.4.1"
+    "ora": "^9.4.1",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2"
   }
 }
