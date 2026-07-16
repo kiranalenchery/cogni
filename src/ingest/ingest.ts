@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { chunkCodeFile, type CodeChunk } from "./chunkers/code";
+import { naiveChunk } from "./chunkers/naive";
 
 const SKIP_DIRS = new Set([
   "node_modules", ".git", "venv", ".venv", "__pycache__",
@@ -12,6 +13,7 @@ const SKIP_DIRS = new Set([
 ]);
 
 const CODE_EXTENSIONS = new Set([".py", ".js", ".jsx", ".ts", ".tsx"]);
+const DOC_EXTENSIONS = new Set([".md"]);
 const MAX_LINE_LENGTH = 500;
 
 export interface IngestResult {
@@ -28,6 +30,17 @@ export async function ingestCodeFolder(rootDir: string): Promise<IngestResult> {
   for (const filePath of filePaths) {
     try {
       const sourceCode = readFileSync(filePath, "utf-8");
+      const ext = extname(filePath);
+
+      if (DOC_EXTENSIONS.has(ext)) {
+        // TEMPORARY: Stage 2 will replace this with a real heading-aware
+        // markdown chunker (chunkMarkdownFile). Naive chunking is a
+        // placeholder so docs are at least captured, not silently dropped.
+        const docChunks = naiveChunk(sourceCode, filePath);
+        chunks.push(...docChunks);
+        warnings.push(`Doc file chunked naively (Stage 2 pending): ${filePath}`);
+        continue;
+      }
 
       if (looksMinified(sourceCode)) {
         warnings.push(`Skipped likely minified/generated file: ${filePath}`);
@@ -76,7 +89,10 @@ async function walkDirectory(dir: string): Promise<string[]> {
 
     if (entry.isDirectory()) {
       files.push(...(await walkDirectory(fullPath)));
-    } else if (entry.isFile() && CODE_EXTENSIONS.has(extname(entry.name))) {
+    } else if (
+      entry.isFile() &&
+      (CODE_EXTENSIONS.has(extname(entry.name)) || DOC_EXTENSIONS.has(extname(entry.name)))
+    ) {
       files.push(fullPath);
     }
   }
