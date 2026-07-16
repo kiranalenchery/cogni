@@ -2,14 +2,30 @@ import { readdir } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { chunkCodeFile, type CodeChunk } from "./chunkers/code";
-import { naiveChunk } from "./chunkers/naive";
+import { naiveChunk } from "./chunkers/native";
+import { chunkMarkdownFile } from "./chunkers/markDown";
 
 const SKIP_DIRS = new Set([
-  "node_modules", ".git", "venv", ".venv", "__pycache__",
-  "dist", "build", ".next", "out", "migrations",
-  "coverage", "playwright-report", "test-results",
-  "chrome-profile", ".vscode", ".gemini", ".opencode",
-  ".idea", "target", ".cache",
+  "node_modules",
+  ".git",
+  "venv",
+  ".venv",
+  "__pycache__",
+  "dist",
+  "build",
+  ".next",
+  "out",
+  "migrations",
+  "coverage",
+  "playwright-report",
+  "test-results",
+  "chrome-profile",
+  ".vscode",
+  ".gemini",
+  ".opencode",
+  ".idea",
+  "target",
+  ".cache",
 ]);
 
 const CODE_EXTENSIONS = new Set([".py", ".js", ".jsx", ".ts", ".tsx"]);
@@ -33,15 +49,10 @@ export async function ingestCodeFolder(rootDir: string): Promise<IngestResult> {
       const ext = extname(filePath);
 
       if (DOC_EXTENSIONS.has(ext)) {
-        // TEMPORARY: Stage 2 will replace this with a real heading-aware
-        // markdown chunker (chunkMarkdownFile). Naive chunking is a
-        // placeholder so docs are at least captured, not silently dropped.
-        const docChunks = naiveChunk(sourceCode, filePath);
+        const docChunks = await chunkMarkdownFile(filePath, sourceCode);
         chunks.push(...docChunks);
-        warnings.push(`Doc file chunked naively (Stage 2 pending): ${filePath}`);
         continue;
       }
-
       if (looksMinified(sourceCode)) {
         warnings.push(`Skipped likely minified/generated file: ${filePath}`);
         continue;
@@ -49,7 +60,9 @@ export async function ingestCodeFolder(rootDir: string): Promise<IngestResult> {
 
       const fileChunks = await chunkCodeFile(filePath, sourceCode);
       if (fileChunks.length === 0) {
-        warnings.push(`No structural items found in ${filePath}, used naive chunking`);
+        warnings.push(
+          `No structural items found in ${filePath}, used naive chunking`,
+        );
       }
       chunks.push(...fileChunks);
     } catch (err) {
@@ -60,7 +73,9 @@ export async function ingestCodeFolder(rootDir: string): Promise<IngestResult> {
   return { chunks, warnings, filesScanned: filePaths.length };
 }
 
-export async function ingestCodeFolders(rootDirs: string[]): Promise<IngestResult> {
+export async function ingestCodeFolders(
+  rootDirs: string[],
+): Promise<IngestResult> {
   const allChunks: CodeChunk[] = [];
   const allWarnings: string[] = [];
   let totalScanned = 0;
@@ -72,11 +87,15 @@ export async function ingestCodeFolders(rootDirs: string[]): Promise<IngestResul
     totalScanned += result.filesScanned;
   }
 
-  return { chunks: allChunks, warnings: allWarnings, filesScanned: totalScanned };
+  return {
+    chunks: allChunks,
+    warnings: allWarnings,
+    filesScanned: totalScanned,
+  };
 }
 
 function looksMinified(sourceCode: string): boolean {
-  return sourceCode.split("\n").some(line => line.length > MAX_LINE_LENGTH);
+  return sourceCode.split("\n").some((line) => line.length > MAX_LINE_LENGTH);
 }
 
 async function walkDirectory(dir: string): Promise<string[]> {
@@ -91,7 +110,8 @@ async function walkDirectory(dir: string): Promise<string[]> {
       files.push(...(await walkDirectory(fullPath)));
     } else if (
       entry.isFile() &&
-      (CODE_EXTENSIONS.has(extname(entry.name)) || DOC_EXTENSIONS.has(extname(entry.name)))
+      (CODE_EXTENSIONS.has(extname(entry.name)) ||
+        DOC_EXTENSIONS.has(extname(entry.name)))
     ) {
       files.push(fullPath);
     }

@@ -18,7 +18,7 @@ export interface CodeChunk {
 function flattenStructure(
   items: StructureItem[],
   filePath: string,
-  sourceCode: string
+  sourceBuffer: Buffer
 ): CodeChunk[] {
   const chunks: CodeChunk[] = [];
 
@@ -27,7 +27,7 @@ function flattenStructure(
       chunks.push({
         type: item.kind ?? "Other",
         name: item.name ?? "anonymous",
-        text: sourceCode.slice(item.span.startByte, item.span.endByte),
+        text: sourceBuffer.subarray(item.span.startByte, item.span.endByte).toString("utf-8"),
         startLine: (item.span.startLine ?? 0) + 1,
         endLine: (item.span.endLine ?? 0) + 1,
         filePath,
@@ -35,7 +35,7 @@ function flattenStructure(
     }
 
     if (item.children?.length) {
-      chunks.push(...flattenStructure(item.children, filePath, sourceCode));
+      chunks.push(...flattenStructure(item.children, filePath, sourceBuffer));
     }
   }
 
@@ -58,5 +58,6 @@ export async function chunkCodeFile(
     return naiveChunk(sourceCode, filePath);
   }
 
-  return flattenStructure(result.structure, filePath, sourceCode);
+  const sourceBuffer = Buffer.from(sourceCode, "utf-8");
+  return flattenStructure(result.structure, filePath, sourceBuffer);
 }
