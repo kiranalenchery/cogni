@@ -1,7 +1,7 @@
 export type QuestionCategory = "CODE" | "HOWTO" | "FACT" | "DEFAULT";
 
 const CODE_VERB_PATTERN =
-  /^\s*(write|create|generate|give me|show me)\b.{0,40}\b(function|script|snippet|program|class|method|code)\b/i;
+  /^\s*(can you |could you |please )*(write|create|generate|give me|show me)\b.{0,40}\b(function|script|snippet|program|class|method|code)\b/i;
 const CODEBASE_REFERENCE_PATTERN =
   /\b(this codebase|our codebase|in (this|our) project|how we|like we do|similar to how|in the code|our project|this project|our system)\b/i;
 const FACT_PATTERN =

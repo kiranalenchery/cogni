@@ -39,30 +39,35 @@ function recoverNameFromText(text: string): string | null {
 // Tree-sitter's span for an arrow/function expression starts at the function
 // itself (e.g. "(token) => {"), not at the enclosing "const NAME = " — so
 // recoverNameFromText never sees the declarator. This looks for that
-// declarator immediately preceding the span instead.
-function recoverNameFromPrecedingDeclarator(
+// declarator immediately preceding the span instead. Returns the matched
+// prefix text too, since the chunk's stored `text` needs the same lookback
+// applied — not just its `name` — or the declarator (and the identifier in
+// it) never appears in what gets embedded/shown to the generation model.
+function matchPrecedingDeclarator(
   precedingText: string,
   text: string,
-): string | null {
+): { name: string; prefix: string } | null {
   if (!/^(\(|async\s|function\b)/.test(text)) return null;
   const declarator = precedingText.match(
     /(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?$/,
   );
-  return declarator ? declarator[1] : null;
+  return declarator ? { name: declarator[1], prefix: declarator[0] } : null;
 }
 
-function resolveChunkName(
+function resolveChunk(
   rawName: string | undefined,
   text: string,
   precedingText: string,
-): string {
+): { name: string; text: string } {
   if (rawName && !ANON_PLACEHOLDER_NAMES.has(rawName)) {
-    return rawName;
+    return { name: rawName, text };
   }
-  const recovered =
-    recoverNameFromPrecedingDeclarator(precedingText, text) ??
-    recoverNameFromText(text);
-  return recovered ?? rawName ?? "anonymous";
+  const declaratorMatch = matchPrecedingDeclarator(precedingText, text);
+  if (declaratorMatch) {
+    return { name: declaratorMatch.name, text: declaratorMatch.prefix + text };
+  }
+  const recovered = recoverNameFromText(text);
+  return { name: recovered ?? rawName ?? "anonymous", text };
 }
 
 export function splitChunkInHalf(chunk: CodeChunk): [CodeChunk, CodeChunk] {
@@ -117,10 +122,11 @@ function flattenStructure(
       const precedingText = sourceBuffer
         .subarray(precedingStart, item.span.startByte)
         .toString("utf-8");
+      const resolved = resolveChunk(item.name, text, precedingText);
       chunks.push({
         type: item.kind ?? "Other",
-        name: resolveChunkName(item.name, text, precedingText),
-        text,
+        name: resolved.name,
+        text: resolved.text,
         startLine: (item.span.startLine ?? 0) + 1,
         endLine: (item.span.endLine ?? 0) + 1,
         filePath,

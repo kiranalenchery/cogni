@@ -133,6 +133,7 @@ async function answerQuestion(question: string, history: ConversationTurn[] = []
   const spinner = ora({ text: "Thinking...", color: "green" }).start();
 
   const category = await classifyQuestion(question);
+  console.log(chalk.dim(`[category: ${category}]`));
 
   if (category === "CODE") {
     spinner.text = "Writing code...";
