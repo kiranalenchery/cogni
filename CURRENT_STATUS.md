@@ -64,13 +64,10 @@ ask / interactive:
 
 ## Documentation drift (`CLAUDE.md` vs. code)
 
-The working copy of `CLAUDE.md` has uncommitted edits that bring it closer to reality, but
-it's worth flagging that the previously-committed version was significantly stale — it
-described `generate.ts` as non-functional with a misspelled, non-existent import and
-called interactive mode "just echoes the question back." Neither is true of the current
-code: generation is implemented and interactive mode is a full retrieve-and-generate loop.
-The staged edit in the working tree brings the doc up to date; it just hasn't been
-committed yet.
+Resolved as of 2026-07-17: `CLAUDE.md` now describes `generate.ts` as implemented and wired
+into both `ask` and interactive mode, and documents interactive mode as a full
+retrieve-and-generate REPL with bounded conversation history — matching the code in
+`src/cli.ts` and `src/generate/generate.ts`.
 
 ## Issues found while scanning
 
@@ -92,12 +89,15 @@ committed yet.
 
 ## Git state
 
-- Branch: `feature/ui-setup`, up to date with `origin/feature/ui-setup`.
-- Uncommitted: `CLAUDE.md` and `src/cli.ts` modified; `src/generate/` untracked (new,
-  functional module not yet added to git).
+- Branch: `feature/ui-setup`, ahead of `origin/feature/ui-setup` by 1 commit
+  (`3cf2beb`, "Enhance CLI functionality: implement answer generation, improve chunk
+  naming resolution, and add status reporting for embedding process") — not yet pushed.
+- That commit includes the `ask`/generation wiring in `cli.ts`, `src/generate/generate.ts`,
+  the chunk-name-recovery logic in `code.ts`, the name-match boost in `vectorStore.ts`,
+  and this file.
 - Other branches exist both locally and on `origin`: `main`, `dev`, `qa`, `prod`.
 - Recent history is a steady build-out: ingest refactors → markdown chunking → embedding
-  wired into ingest → (uncommitted) `ask` + generation wired into the CLI.
+  wired into ingest → `ask` + generation wired into the CLI.
 
 ## Dependencies
 
