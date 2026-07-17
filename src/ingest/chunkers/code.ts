@@ -36,13 +36,67 @@ function recoverNameFromText(text: string): string | null {
   return null;
 }
 
-function resolveChunkName(rawName: string | undefined, text: string): string {
+// Tree-sitter's span for an arrow/function expression starts at the function
+// itself (e.g. "(token) => {"), not at the enclosing "const NAME = " — so
+// recoverNameFromText never sees the declarator. This looks for that
+// declarator immediately preceding the span instead.
+function recoverNameFromPrecedingDeclarator(
+  precedingText: string,
+  text: string,
+): string | null {
+  if (!/^(\(|async\s|function\b)/.test(text)) return null;
+  const declarator = precedingText.match(
+    /(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?$/,
+  );
+  return declarator ? declarator[1] : null;
+}
+
+function resolveChunkName(
+  rawName: string | undefined,
+  text: string,
+  precedingText: string,
+): string {
   if (rawName && !ANON_PLACEHOLDER_NAMES.has(rawName)) {
     return rawName;
   }
-  const recovered = recoverNameFromText(text);
+  const recovered =
+    recoverNameFromPrecedingDeclarator(precedingText, text) ??
+    recoverNameFromText(text);
   return recovered ?? rawName ?? "anonymous";
 }
+
+export function splitChunkInHalf(chunk: CodeChunk): [CodeChunk, CodeChunk] {
+  const lines = chunk.text.split("\n");
+
+  if (lines.length <= 1) {
+    const mid = Math.floor(chunk.text.length / 2);
+    return [
+      { ...chunk, text: chunk.text.slice(0, mid), name: `${chunk.name} (part 1)` },
+      { ...chunk, text: chunk.text.slice(mid), name: `${chunk.name} (part 2)` },
+    ];
+  }
+
+  const mid = Math.ceil(lines.length / 2);
+  const firstText = lines.slice(0, mid).join("\n");
+  const secondText = lines.slice(mid).join("\n");
+
+  return [
+    {
+      ...chunk,
+      text: firstText,
+      endLine: chunk.startLine + mid - 1,
+      name: `${chunk.name} (part 1)`,
+    },
+    {
+      ...chunk,
+      text: secondText,
+      startLine: chunk.startLine + mid,
+      name: `${chunk.name} (part 2)`,
+    },
+  ];
+}
+
+const DECLARATOR_LOOKBACK_BYTES = 120;
 
 function flattenStructure(
   items: StructureItem[],
@@ -56,9 +110,16 @@ function flattenStructure(
       const text = sourceBuffer
         .subarray(item.span.startByte, item.span.endByte)
         .toString("utf-8");
+      const precedingStart = Math.max(
+        0,
+        (item.span.startByte ?? 0) - DECLARATOR_LOOKBACK_BYTES,
+      );
+      const precedingText = sourceBuffer
+        .subarray(precedingStart, item.span.startByte)
+        .toString("utf-8");
       chunks.push({
         type: item.kind ?? "Other",
-        name: resolveChunkName(item.name, text),
+        name: resolveChunkName(item.name, text, precedingText),
         text,
         startLine: (item.span.startLine ?? 0) + 1,
         endLine: (item.span.endLine ?? 0) + 1,

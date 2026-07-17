@@ -7,9 +7,8 @@ async function callEmbedAPI(prefixedText: string): Promise<number[]> {
     body: JSON.stringify({ model: EMBEDDING_MODEL, input: prefixedText }),
   });
   if (!res.ok) {
-    throw new Error(
-      `Failed to call embed API: ${res.status} ${res.statusText}`,
-    );
+    const errorBody = await res.text().catch(() => "(could not read response body)");
+    throw new Error(`Failed to call embed API: ${res.status} ${res.statusText} — ${errorBody}`);
   }
   const data = await res.json();
   return data.embeddings[0];
