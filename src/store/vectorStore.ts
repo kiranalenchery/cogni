@@ -58,14 +58,31 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));
 }
 
+// If the query literally names a chunk (e.g. "isAuthenticated"), boost it —
+// don't rely purely on embedding similarity to surface an exact identifier match.
+const NAME_MATCH_BOOST = 0.2;
+const GENERIC_NAMES = new Set(["anonymous", "untitled"]);
+
 export function search(
   queryEmbedding: number[],
   topK: number = 5,
+  queryText?: string,
 ): SearchResult[] {
-  const scored = store.map((chunk) => ({
-    chunk,
-    score: cosineSimilarity(queryEmbedding, chunk.embedding),
-  }));
+  const queryLower = queryText?.toLowerCase() ?? "";
+
+  const scored = store.map((chunk) => {
+    let score = cosineSimilarity(queryEmbedding, chunk.embedding);
+
+    if (queryText && chunk.name && chunk.name.length > 2) {
+      const nameLower = chunk.name.toLowerCase();
+      if (!GENERIC_NAMES.has(nameLower) && queryLower.includes(nameLower)) {
+        score = Math.min(1, score + NAME_MATCH_BOOST);
+      }
+    }
+
+    return { chunk, score };
+  });
+
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK);
 }

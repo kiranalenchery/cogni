@@ -2,6 +2,7 @@
 import { renderBanner, renderStatusLine } from "./ui/banner";
 import { ingestCodeFolders } from "./ingest/ingest";
 import { embedDocument, embedQuery } from "./embed/embed";
+import { generateAnswer, type ConversationTurn } from "./generate/generate";
 import {
   addChunk,
   clearStore,
@@ -15,6 +16,9 @@ import { existsSync, statSync } from "node:fs";
 import chalk from "chalk";
 import ora from "ora";
 import readline from "node:readline/promises";
+
+const SIMILARITY_THRESHOLD = 0.55;
+const MAX_HISTORY_TURNS = 3;
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -56,17 +60,14 @@ async function runIngest(rawArgs: string[]) {
   }
   console.log();
 
-  // --- Chunking phase ---
   const chunkSpinner = ora({
     text: "Walking folders and chunking code...",
     color: "green",
   }).start();
-
   const chunkStart = Date.now();
   const { chunks, warnings, filesScanned } =
     await ingestCodeFolders(resolvedFolders);
   const chunkDuration = ((Date.now() - chunkStart) / 1000).toFixed(1);
-
   chunkSpinner.succeed(
     `Chunked ${chunks.length} chunks from ${filesScanned} files in ${chunkDuration}s`,
   );
@@ -83,7 +84,6 @@ async function runIngest(rawArgs: string[]) {
   }
   console.log();
 
-  // --- Embedding phase ---
   clearStore();
   const embedSpinner = ora({
     text: `Embedding 0/${chunks.length} chunks...`,
@@ -94,7 +94,8 @@ async function runIngest(rawArgs: string[]) {
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i];
     try {
-      const embedding = await embedDocument(chunk.text);
+      const textForEmbedding = `${chunk.type}: ${chunk.name} (${chunk.filePath})\n\n${chunk.text}`;
+      const embedding = await embedDocument(textForEmbedding);
       addChunk({
         id: `${chunk.filePath}:${chunk.startLine}-${chunk.endLine}`,
         text: chunk.text,
@@ -107,10 +108,9 @@ async function runIngest(rawArgs: string[]) {
       });
     } catch (err) {
       warnings.push(
-        `Failed to embed chunk from ${chunk.filePath}:${chunk.startLine}`,
+        `Failed to embed chunk from ${chunk.filePath}:${chunk.startLine} — ${(err as Error).message}`,
       );
     }
-
     if (i % 10 === 0 || i === chunks.length - 1) {
       embedSpinner.text = `Embedding ${i + 1}/${chunks.length} chunks...`;
     }
@@ -120,11 +120,9 @@ async function runIngest(rawArgs: string[]) {
   embedSpinner.succeed(
     `Embedded ${getStore().length} chunks in ${embedDuration}s`,
   );
-
   saveStore();
   renderStatusLine(`> saved index to ~/.cogni/index.json_`);
 
-  // --- Warnings ---
   if (warnings.length > 0) {
     if (verbose) {
       console.log();
@@ -141,9 +139,71 @@ async function runIngest(rawArgs: string[]) {
   }
 }
 
+// Returns the generated answer text (or null if nothing was generated),
+// so callers can decide whether to add it to conversation history.
+function buildSearchQuery(
+  question: string,
+  history: ConversationTurn[],
+): string {
+  if (history.length === 0) return question;
+  const recentQuestions = history
+    .slice(-2)
+    .map((h) => h.question)
+    .join(" ");
+  return `${recentQuestions} ${question}`;
+}
+
+async function answerQuestion(
+  question: string,
+  history: ConversationTurn[] = [],
+): Promise<string | null> {
+  const spinner = ora({ text: "Searching...", color: "green" }).start();
+
+  const searchQueryText = buildSearchQuery(question, history);
+  const queryEmbedding = await embedQuery(searchQueryText);
+  const results = search(queryEmbedding, 5, searchQueryText);
+
+  if (results.length === 0 || results[0].score < SIMILARITY_THRESHOLD) {
+    spinner.warn("Nothing relevant found");
+    console.log();
+    console.log(
+      chalk.hex("#1e9e46")(
+        "I don't have relevant information in the indexed knowledge to answer this.",
+      ),
+    );
+    console.log();
+    return null;
+  }
+
+  spinner.text = "Generating answer...";
+  let answer: string;
+  try {
+    answer = await generateAnswer(question, results, history);
+  } catch (err) {
+    spinner.fail("Generation failed");
+    console.log(chalk.red(`  ${(err as Error).message}`));
+    return null;
+  }
+
+  spinner.succeed("Done");
+  console.log();
+  console.log(chalk.hex("#33ff66")(answer));
+  console.log();
+  renderStatusLine("sources_");
+  for (const r of results) {
+    console.log(
+      chalk.hex("#1e9e46")(
+        `  ${r.chunk.filePath}:${r.chunk.startLine}-${r.chunk.endLine} [${r.score.toFixed(3)}]`,
+      ),
+    );
+  }
+  console.log();
+
+  return answer;
+}
+
 async function runAsk(rawArgs: string[]) {
   const question = rawArgs.join(" ");
-
   if (!question) {
     console.log(chalk.red('Usage: cogni ask "<your question>"'));
     process.exit(1);
@@ -151,57 +211,57 @@ async function runAsk(rawArgs: string[]) {
 
   renderBanner();
 
-  const loaded = loadStore();
-  if (!loaded || getStore().length === 0) {
+  if (!loadStore() || getStore().length === 0) {
     console.log(
       chalk.red("No index found. Run `cogni ingest <folders...>` first."),
     );
     process.exit(1);
   }
 
-  renderStatusLine(
-    `> searching ${getStore().length} chunks for: "${question}"_\n`,
-  );
-
-  const spinner = ora({
-    text: "Embedding query and searching...",
-    color: "green",
-  }).start();
-
-  const queryEmbedding = await embedQuery(question);
-  const results = search(queryEmbedding, 5);
-
-  spinner.succeed(`Found ${results.length} matches`);
-  console.log();
-
-  for (const [i, result] of results.entries()) {
-    console.log(
-      chalk.hex("#33ff66")(
-        `${i + 1}. [${result.score.toFixed(4)}] ${result.chunk.type}: ${result.chunk.name}`,
-      ),
-    );
-    console.log(
-      chalk.hex("#1e9e46")(
-        `   ${result.chunk.filePath}:${result.chunk.startLine}-${result.chunk.endLine}`,
-      ),
-    );
-    console.log();
-  }
+  await answerQuestion(question);
 }
 
 async function runInteractive() {
   renderBanner();
+
+  if (!loadStore() || getStore().length === 0) {
+    console.log(
+      chalk.red("No index found. Run `cogni ingest <folders...>` first."),
+    );
+    process.exit(1);
+  }
+
   renderStatusLine("> retrieval engine online_");
-  renderStatusLine("loaded: code(0) docs(0) incidents(0)\n");
+  renderStatusLine(`loaded: ${getStore().length} chunks\n`);
 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   });
+  const history: ConversationTurn[] = [];
 
   console.log(chalk.hex("#33ff66")("where should we start digging?"));
-  const question = await rl.question(chalk.hex("#33ff66")("> "));
 
-  console.log(`\nYou asked: ${question}`);
+  while (true) {
+    const input = await rl.question(chalk.hex("#33ff66")("> "));
+    const trimmed = input.trim().toLowerCase();
+
+    if (trimmed === "exit" || trimmed === "quit") {
+      break;
+    }
+    if (!trimmed) {
+      continue;
+    }
+
+    const answer = await answerQuestion(input, history);
+
+    if (answer) {
+      history.push({ question: input, answer });
+      if (history.length > MAX_HISTORY_TURNS) {
+        history.shift();
+      }
+    }
+  }
+
   rl.close();
 }

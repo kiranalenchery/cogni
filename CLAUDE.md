@@ -4,34 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Cogni is a CLI (`bin: cogni` → `src/cli.ts`) that walks one or more project folders, chunks their source code into structural units (functions, classes, etc.), and is meant to become a retrieval engine over code/docs/incidents (see the "retrieval engine online" interactive mode). It's early-stage: interactive mode currently just echoes the question back, and there's no persistence/embedding/search layer yet.
+Cogni is a CLI (`bin: cogni` → `src/cli.ts`) that walks one or more project folders, chunks their source code and markdown docs into structural units, embeds them locally via Ollama, and answers questions against that index. Three commands: `ingest` (chunk + embed + persist), `ask` (embed a query and return the top-K matching chunks), and a bare interactive mode that's still a stub (just echoes the question back). There's a `src/generate/` module scaffolded for turning search results into a generated answer, but it isn't wired into the CLI yet.
 
 ## Commands
 
 There are no `scripts` defined in `package.json` yet — run things directly with Bun:
 
 - Install deps: `bun install`
-- Run the CLI: `bun src/cli.ts ingest <folder1> <folder2> ... [--verbose]`
+- Ingest folders (chunks, embeds, and saves the index): `bun src/cli.ts ingest <folder1> <folder2> ... [--verbose]`
+- Ask a question against the saved index: `bun src/cli.ts ask "<your question>"`
 - Run in interactive mode: `bun src/cli.ts` (no args)
-- Ad-hoc experiments live in `src/ingest/chunkers/exp.ts` (hardcoded local paths — run with `bun src/ingest/chunkers/exp.ts`, edit the `rootDirs` array first)
+- Embedding requires a local Ollama server running the `nomic-embed-text` model (`OLLAMA_API_URL` is hardcoded to `http://localhost:11434/api/embed` in `src/embed/embed.ts`) — start it before running `ingest` or `ask`.
+- Ad-hoc experiments live in `src/ingest/chunkers/exp.ts` and `src/embed/exp2.ts` (hardcoded local paths/values — edit the file before running, e.g. `bun src/embed/exp2.ts`)
 - No test suite exists yet; use `bun test` once tests are added
 
 ## Architecture
 
-**Flow:** `cli.ts` → `ingest/ingest.ts` → `ingest/chunkers/code.ts` → `ingest/chunkers/naive.ts`
+**Ingest flow:** `cli.ts` (`runIngest`) → `ingest/ingest.ts` → `ingest/chunkers/code.ts` (code) or `ingest/chunkers/markdown.ts` (`.md` docs), each falling back to `ingest/chunkers/native.ts` → `embed/embed.ts` (`embedDocument`) → `store/vectorStore.ts` (`addChunk` + `saveStore`)
 
-- `src/cli.ts` — entry point. Dispatches on `argv[2]`: `ingest <folders...>` runs the batch ingestion path; anything else drops into `runInteractive()`, a readline-based prompt loop (currently a stub).
-- `src/ingest/ingest.ts` — recursively walks each root dir (`walkDirectory`), skipping a fixed `SKIP_DIRS` set (`node_modules`, `.git`, build output dirs, etc.) and filtering to `CODE_EXTENSIONS` (`.py .js .jsx .ts .tsx`). For each file it skips likely-minified files (any line > `MAX_LINE_LENGTH` chars) and otherwise calls `chunkCodeFile`. Returns an `IngestResult` (`chunks`, `warnings`, `filesScanned`) — errors and edge cases (minified, no structure found) become warnings rather than throwing, so one bad file doesn't abort a whole ingest run.
+**Ask flow:** `cli.ts` (`runAsk`) → `store/vectorStore.ts` (`loadStore`) → `embed/embed.ts` (`embedQuery`) → `store/vectorStore.ts` (`search`, cosine similarity)
+
+- `src/cli.ts` — entry point. Dispatches on `argv[2]`: `ingest <folders...>` runs chunking + embedding + persists the index; `ask "<question>"` loads the persisted index, embeds the question, and prints the top-5 matches; anything else drops into `runInteractive()`, a readline-based prompt loop (currently a stub).
+- `src/ingest/ingest.ts` — recursively walks each root dir (`walkDirectory`), skipping a fixed `SKIP_DIRS` set (`node_modules`, `.git`, build output dirs, etc.). Routes files by extension: `DOC_EXTENSIONS` (`.md`) go through `chunkMarkdownFile`; `CODE_EXTENSIONS` (`.py .js .jsx .ts .tsx`) are checked for likely-minified content (any line > `MAX_LINE_LENGTH` chars, skipped with a warning) and otherwise go through `chunkCodeFile`. Returns an `IngestResult` (`chunks`, `warnings`, `filesScanned`) — errors and edge cases (minified, no structure found) become warnings rather than throwing, so one bad file doesn't abort a whole ingest run.
 - `src/ingest/chunkers/code.ts` — `chunkCodeFile` detects the language via `@kreuzberg/tree-sitter-language-pack` and asks it for structural spans (functions/classes/etc. as `StructureItem[]`), then flattens that tree into a flat `CodeChunk[]` (recursing into `item.children`). Falls back to `naiveChunk` when the language isn't supported or tree-sitter finds no structure.
-- `src/ingest/chunkers/naive.ts` — dumb fixed-size (1000 char) chunking fallback; doesn't track real line numbers.
+- `src/ingest/chunkers/markdown.ts` — `chunkMarkdownFile` parses markdown with the tree-sitter markdown grammar and walks `section` nodes recursively, turning each heading's section into a `DocChunk` (a `CodeChunk` plus `headingPath: string[]` tracking the nested heading trail). Falls back to `naiveChunk` if parsing fails or no sections are found.
+- `src/ingest/chunkers/native.ts` — dumb fixed-size (1000 char) chunking fallback (`naiveChunk`, renamed from `naive.ts`); doesn't track real line numbers.
+- `src/embed/embed.ts` — `embedDocument`/`embedQuery` both call a local Ollama `/api/embed` endpoint with the `nomic-embed-text` model, prefixing text with `search_document:` or `search_query:` per that model's convention.
+- `src/store/vectorStore.ts` — an in-memory array of `StoredChunk` (a `CodeChunk` plus `id` and `embedding`), persisted as JSON to `~/.cogni/index.json` (`saveStore`/`loadStore`). `search(queryEmbedding, topK)` scores every stored chunk by cosine similarity and returns the top-K as `SearchResult[]`.
+- `src/generate/generate.ts` — new, not yet functional or wired into `cli.ts`; intended to consume `search()` results and generate an answer. Currently only has a single import (`SrearchResult` — misspelled, no such export exists in `vectorStore.ts`) and won't type-check as-is.
 - `src/ui/banner.ts` — all terminal output styling lives here (figlet ASCII banner + phosphor-green `chalk` status lines). Reuse `renderBanner`/`renderStatusLine` for new CLI output rather than styling inline in `cli.ts`.
 
-**Key data shape:** `CodeChunk { type, name, text, startLine, endLine, filePath }` — this is the unit that flows out of ingestion; anything built on top of ingestion (embedding, indexing, retrieval) will consume this shape.
+**Key data shapes:**
+- `CodeChunk { type, name, text, startLine, endLine, filePath }` — the unit that flows out of ingestion.
+- `DocChunk` — `CodeChunk` + `headingPath: string[]`, produced by the markdown chunker.
+- `StoredChunk` — `CodeChunk` + `id` + `embedding: number[]`, the persisted/searchable unit in the vector store.
 
 ## Conventions
 
 - Bun-only (see below) — no Node/npm/vite equivalents.
 - Ingestion is designed to degrade gracefully: prefer adding a warning over throwing when handling a single file/folder fails, so `ingestCodeFolders` can keep going across many files.
+- Embedding/search commands (`ingest`, `ask`) have a hard runtime dependency on a local Ollama instance serving `nomic-embed-text` — there's no cloud embedding fallback.
 
 ## Bun usage
 
