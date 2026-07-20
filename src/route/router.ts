@@ -1,3 +1,5 @@
+import { getConfig, getGenerateUrl } from "../config";
+
 export type QuestionCategory = "CODE" | "HOWTO" | "FACT" | "DEFAULT";
 
 const CODE_VERB_PATTERN =
@@ -9,7 +11,6 @@ const FACT_PATTERN =
 const HOWTO_PATTERN =
   /\b(how do i|how to|how does|how can i|how would i|how should i)\b/i;
 
-const CLASSIFY_MODEL = "llama3.2:3b"; // TODO: route through shared LLMProvider once that abstraction exists
 const VALID_CATEGORIES = new Set(["CODE", "HOWTO", "FACT", "DEFAULT"]);
 
 function heuristicClassify(question: string): QuestionCategory | null {
@@ -38,10 +39,10 @@ Question: ${question}
 Category:`;
 
   try {
-    const res = await fetch("http://localhost:11434/api/generate", {
+    const res = await fetch(getGenerateUrl(), {
       method: "POST",
       body: JSON.stringify({
-        model: CLASSIFY_MODEL,
+        model: getConfig().generateModel,
         prompt,
         stream: false,
         options: { temperature: 0, num_predict: 5 },
