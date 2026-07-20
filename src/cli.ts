@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { renderBanner, renderStatusLine } from "./ui/banner";
+import { ensureConfig } from "./config";
 import { ingestCodeFolders } from "./ingest/ingest";
 import { embedDocument, embedQuery } from "./embed/embed";
 import { generateAnswer, type ConversationTurn } from "./generate/generate";
@@ -21,8 +22,12 @@ import readline from "node:readline/promises";
 const SIMILARITY_THRESHOLD = 0.55;
 const MAX_HISTORY_TURNS = 3;
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const reconfigure = rawArgs.includes("--reconfigure");
+const args = rawArgs.filter(a => a !== "--reconfigure");
 const command = args[0];
+
+await ensureConfig(reconfigure);
 
 if (command === "ingest") {
   await runIngest(args.slice(1));

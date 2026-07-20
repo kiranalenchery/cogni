@@ -1,10 +1,9 @@
-const OLLAMA_API_URL = "http://localhost:11434/api/embed";
-const EMBEDDING_MODEL = "nomic-embed-text";
+import { getConfig, getEmbedUrl } from "../config";
 
 async function callEmbedAPI(prefixedText: string): Promise<number[]> {
-  const res = await fetch(OLLAMA_API_URL, {
+  const res = await fetch(getEmbedUrl(), {
     method: "POST",
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: prefixedText }),
+    body: JSON.stringify({ model: getConfig().embedModel, input: prefixedText }),
   });
   if (!res.ok) {
     const errorBody = await res.text().catch(() => "(could not read response body)");
