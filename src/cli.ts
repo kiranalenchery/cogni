@@ -228,7 +228,7 @@ async function runInteractive() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const history: ConversationTurn[] = [];
 
-  console.log(chalk.hex("#33ff66")("where should we start digging?"));
+  console.log(chalk.hex("#33ff66")("ready — what do you want to know?"));
 
   while (true) {
     const input = await rl.question(chalk.hex("#33ff66")("> "));
