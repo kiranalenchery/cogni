@@ -1,12 +1,14 @@
 import type { SearchResult } from "../store/vectorStore";
 import type { QuestionCategory } from "../route/router";
-
-const OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate";
-const GENERATION_MODEL = "llama3.2:3b";
+import { getConfig, getGenerateUrl } from "../config";
 
 export interface ConversationTurn {
   question: string;
   answer: string;
+}
+
+export interface OllamaGenerateResponse {
+  response: string;
 }
 
 function buildCodePrompt(question: string, history: ConversationTurn[]): string {
@@ -72,10 +74,10 @@ export async function generateAnswer(
     ? buildCodePrompt(question, history)
     : buildGroundedPrompt(question, results, history);
 
-  const res = await fetch(OLLAMA_GENERATE_URL, {
+  const res = await fetch(getGenerateUrl(), {
     method: "POST",
     body: JSON.stringify({
-      model: GENERATION_MODEL,
+      model: getConfig().generateModel,
       prompt,
       stream: false,
       options: { temperature: 0.3 },
@@ -86,6 +88,6 @@ export async function generateAnswer(
     throw new Error(`Failed to call generate API: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json();
+  const data = (await res.json()) as OllamaGenerateResponse;
   return data.response.trim();
 }
