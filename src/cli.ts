@@ -217,7 +217,7 @@ async function runAsk(rawArgs: string[]) {
 async function runInteractive() {
   renderBanner();
 
-  if (!loadStore() || getStore().length === 0) {
+  if (!loadStore() || getStore().length === 0 ) {
     console.log(chalk.red("No index found. Run `cogni ingest <folders...>` first."));
     process.exit(1);
   }
