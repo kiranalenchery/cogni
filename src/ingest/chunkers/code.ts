@@ -21,17 +21,17 @@ function recoverNameFromText(text: string): string | null {
   const constArrow = text.match(
     /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/,
   );
-  if (constArrow) return constArrow[1];
+  if (constArrow) return constArrow[1] ?? null;
 
   const constFunctionExpr = text.match(
     /(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function/,
   );
-  if (constFunctionExpr) return constFunctionExpr[1];
+  if (constFunctionExpr) return constFunctionExpr[1] ?? null;
 
   const namedFunctionDecl = text.match(
     /(?:export\s+)?(?:default\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/,
   );
-  if (namedFunctionDecl) return namedFunctionDecl[1];
+  if (namedFunctionDecl) return namedFunctionDecl[1] ?? null;
 
   return null;
 }
@@ -51,7 +51,9 @@ function matchPrecedingDeclarator(
   const declarator = precedingText.match(
     /(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?$/,
   );
-  return declarator ? { name: declarator[1], prefix: declarator[0] } : null;
+  return declarator && declarator[1]
+    ? { name: declarator[1], prefix: declarator[0] }
+    : null;
 }
 
 function resolveChunk(

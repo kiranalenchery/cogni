@@ -1,4 +1,5 @@
 import { getConfig, getGenerateUrl } from "../config";
+import type { OllamaGenerateResponse } from "../generate/generate";
 
 export type QuestionCategory = "CODE" | "HOWTO" | "FACT" | "DEFAULT";
 
@@ -49,11 +50,9 @@ Category:`;
       }),
     });
     if (!res.ok) return "DEFAULT";
-    const data = await res.json();
-    const label = (data.response as string)
-      .trim()
-      .toUpperCase()
-      .split(/\s+/)[0];
+    const data = (await res.json()) as OllamaGenerateResponse;
+    const label =
+      data.response.trim().toUpperCase().split(/\s+/)[0] ?? "";
     return VALID_CATEGORIES.has(label)
       ? (label as QuestionCategory)
       : "DEFAULT";

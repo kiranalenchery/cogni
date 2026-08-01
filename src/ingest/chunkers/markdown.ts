@@ -27,7 +27,7 @@ function getHeadingInfo(sectionNode: Node, sourceBuffer: Buffer): HeadingInfo | 
         const markerMatch = kind.match(/^atx_h(\d)_marker$/);
 
         if (markerMatch) {
-          level = parseInt(markerMatch[1], 10);
+          level = parseInt(markerMatch[1] ?? "0", 10);
         } else if (kind === "inline") {
           title = sourceBuffer
             .subarray(grandchild.startByte(), grandchild.endByte())

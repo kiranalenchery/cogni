@@ -7,6 +7,10 @@ export interface ConversationTurn {
   answer: string;
 }
 
+export interface OllamaGenerateResponse {
+  response: string;
+}
+
 function buildCodePrompt(question: string, history: ConversationTurn[]): string {
   const historyBlock = history.length > 0
     ? `RECENT CONVERSATION (only use this to resolve references like "it" or "that function"):\n` +
@@ -84,6 +88,6 @@ export async function generateAnswer(
     throw new Error(`Failed to call generate API: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json();
+  const data = (await res.json()) as OllamaGenerateResponse;
   return data.response.trim();
 }

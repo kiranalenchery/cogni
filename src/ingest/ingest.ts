@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join, extname } from "node:path";
 import { chunkCodeFile, type CodeChunk } from "./chunkers/code";
 import { naiveChunk } from "./chunkers/native";
-import { chunkMarkdownFile } from "./chunkers/markDown";
+import { chunkMarkdownFile } from "./chunkers/markdown";
 
 const SKIP_DIRS = new Set([
   "node_modules",

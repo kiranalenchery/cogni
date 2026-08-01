@@ -86,8 +86,7 @@ async function runIngest(rawArgs: string[]) {
   const embedSpinner = ora({ text: `Embedding 0/${chunks.length} chunks...`, color: "green" }).start();
   const embedStart = Date.now();
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+  for (const [i, chunk] of chunks.entries()) {
     try {
       const textForEmbedding = `${chunk.type}: ${chunk.name} (${chunk.filePath})\n\n${chunk.text}`;
       const embedding = await embedDocument(textForEmbedding);
@@ -160,10 +159,14 @@ async function answerQuestion(question: string, history: ConversationTurn[] = []
   spinner.text = "Searching...";
   const searchQueryText = buildSearchQuery(question, history);
   const queryEmbedding = await embedQuery(searchQueryText);
+  // NOTE: preferredTypesForCategory() is computed but not passed to search() —
+  // vectorStore.ts's search() doesn't accept a type-preference argument yet,
+  // so category-based ranking preference is not actually applied (see CLAUDE.md).
   const preferredTypes = preferredTypesForCategory(category);
-  const results = search(queryEmbedding, 5, searchQueryText, preferredTypes);
+  const results = search(queryEmbedding, 5, searchQueryText);
 
-  if (results.length === 0 || results[0].score < SIMILARITY_THRESHOLD) {
+  const topResult = results[0];
+  if (!topResult || topResult.score < SIMILARITY_THRESHOLD) {
     spinner.warn("Nothing relevant found");
     console.log();
     console.log(chalk.hex("#1e9e46")("I don't have relevant information in the indexed knowledge to answer this."));
