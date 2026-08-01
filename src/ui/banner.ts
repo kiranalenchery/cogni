@@ -12,3 +12,7 @@ export function renderBanner(): void {
 export function renderStatusLine(text: string): void {
   console.log(chalk.hex(DIM_GREEN)(text));
 }
+
+export function renderErrorLine(text: string): void {
+  console.log(chalk.red(text));
+}
